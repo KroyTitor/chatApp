@@ -10,6 +10,9 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <pthread.h>
+
+#define MAXDATASIZE 300 // max number of bytes we can get at once
 
 #define PORT "3490" // the port users will be connecting to
 
@@ -34,6 +37,33 @@ void *get_in_addr(struct sockaddr *sa)
 	return &(((struct sockaddr_in6*)sa)->sin6_addr);
 }
 
+void *clientThread(void *client_socket_ptr) {
+	int client_socket = *(int *)client_socket_ptr;
+	char buffer[MAXDATASIZE];
+	int numbytes;
+
+	while(1) {
+		numbytes = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
+		if (numbytes <= 0) {
+			break;
+		}
+
+		buffer[numbytes] = '\0';
+
+		printf("Received message from client: %s\n", buffer);
+
+		if(send(client_socket, "Message received.", 17, 0) == -1){
+			perror("send");
+		}
+	}
+	// Implent client to server communcication logic here
+
+	// Close the client socket when done
+	close(client_socket);
+
+	pthread_exit(NULL);
+}
+
 int main(void)
 {
 	int sockfd, new_fd; // listen on sock_fd, new connection on new_fd
@@ -44,6 +74,7 @@ int main(void)
 	int yes=1;
 	char s[INET6_ADDRSTRLEN];
 	int rv;
+	char buffer[MAXDATASIZE];
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -107,6 +138,13 @@ int main(void)
 		if (new_fd == -1) {
 			perror("accept");
 			continue;
+	}
+
+	// Create a new thread for the client
+	pthread_t client_thread;
+	if(pthread_create(&client_thread, NULL, clientThread, &new_fd) != 0) {
+		perror("pthread_create");
+		// Handle error and continue
 	}
 
 	inet_ntop(their_addr.ss_family,

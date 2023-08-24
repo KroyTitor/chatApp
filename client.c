@@ -31,6 +31,7 @@ int main(int argc, char *argv[])
     struct addrinfo hints, *servinfo, *p;
     int rv;
     char s[INET6_ADDRSTRLEN];
+    char buffer[MAXDATASIZE];
 
     if (argc != 2) {
         fprintf(stderr,"usage: client hostname\n");
@@ -73,6 +74,18 @@ int main(int argc, char *argv[])
     printf("client: connecting to %s\n", s);
 
     freeaddrinfo(servinfo); // all done with this structure
+
+    while(1) {
+        printf("Enter Message: ");
+        fgets(buffer, sizeof(buffer), stdin);
+        buffer[strlen(buffer) -1] = '\0';
+
+        // Send message to the server
+        if(send(sockfd, buffer, strlen(buffer), 0) == -1) {
+            perror("send");
+            break;
+        }
+    }
 
     if ((numbytes = recv(sockfd, buf, MAXDATASIZE-1, 0)) == -1) {
         perror("recv");
